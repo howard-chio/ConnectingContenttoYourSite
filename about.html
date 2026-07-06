@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About Bite Toothpaste</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      line-height: 1.5;
+      color: #2c2c2c;
+    }
+
+    header {
+      background: #f7f4eb;
+      padding: 1rem 2rem;
+      text-align: center;
+    }
+
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      padding: 1rem 2rem;
+      background: #fff;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    nav a {
+      text-decoration: none;
+      color: #4b3f72;
+      font-weight: 600;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    section {
+      padding: 2rem 0;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    footer {
+      background: #f3f1ea;
+      padding: 2rem;
+      text-align: center;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" style="text-decoration:none; color: #2c2c2c; font-size: 1.2rem; font-weight: bold;">Bite Toothpaste</a>
+  </header>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="shop.html">Shop</a>
+    <a href="impact.html">Our impact</a>
+    <a href="account.html">Account</a>
+  </nav>
+
+  <main>
+   <section id="founderstory">
+      <h1 id="founderstory-heading">Founder story</h1>
+      <p id="founderstory-paragraph">Placeholder text for the founder story section. This area can share the origin of the brand.</p>
+    </section>
+
+    <section id="brandmission">
+      <h2 id="brandmission-heading">Brand mission</h2>
+      <p id="brandmission-paragraph">Placeholder text for the brand mission section. This area can describe the company’s values and purpose.</p>
+    </section>
+
+    <section id="milestones">
+      <h2 id="milestones-heading">Milestones</h2>
+      <p id="milestones-paragraph">Placeholder text for the milestones section. This area can highlight key moments in the business journey.</p>
+    </section>
+  </main>
+
+  <footer id="footer">
+    <p id="footer-paragraph">Placeholder footer text for the About page.</p>
+  </footer>
+
+  <!-- page sections above -->
+
+
+  <script>
+// Google Sheet to fetch data into HTML page section content
+
+  // Step 1: Set the published CSV URL from Google Sheets.
+  const CSV_URL =
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtlm35WVxFYyJ9sU5dj19-BMvR6BLJ4TP6tC3nzFm0exJCDju9o2AhhaRXDiv5YYLqphe_cDkx8-er/pub?gid=0&single=true&output=csv";
+  const PROXY_URL = "https://api.allorigins.win/raw?url=";
+
+  // Step 2: Detect the current page name from the URL filename.
+  function getCurrentPageName() {
+    const path = window.location.pathname;
+    const fileName = path.split("/").filter(Boolean).pop() || "index";
+    return fileName.replace(/\.[^/.]+$/, "").toLowerCase();
+  }
+
+  // Step 3: Fetch the CSV text using the direct URL first and a CORS-friendly proxy as a fallback.
+  async function fetchCsvText() {
+    const urlsToTry = [CSV_URL, `${PROXY_URL}${encodeURIComponent(CSV_URL)}`];
+
+    for (const url of urlsToTry) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) continue;
+
+        const text = await response.text();
+        if (text.trim()) return text;
+      } catch (error) {
+        console.warn(`CSV fetch failed for ${url}:`, error);
+      }
+    }
+
+    throw new Error("Unable to load the CSV content.");
+  }
+
+  // Step 4: Parse the CSV text into rows.
+  function parseCSV(text) {
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === "," && !inQuotes) {
+        row.push(cell.trim());
+        cell = "";
+      } else if ((char === "\n" || char === "\r") && !inQuotes) {
+        if (char === "\r" && nextChar === "\n") i++;
+        row.push(cell.trim());
+        rows.push(row);
+        row = [];
+        cell = "";
+      } else {
+        cell += char;
+      }
+    }
+
+    if (cell.length > 0 || row.length > 0) {
+      row.push(cell.trim());
+      rows.push(row);
+    }
+
+    return rows;
+  }
+
+  // Step 5: Convert the parsed rows into objects keyed by column names.
+  function rowsToObjects(rows) {
+    if (!rows.length) return [];
+    const [headers, ...dataRows] = rows;
+
+    return dataRows.map((row) => {
+      const obj = {};
+      headers.forEach((header, index) => {
+        obj[header.trim().toLowerCase()] = (row[index] || "").trim();
+      });
+      return obj;
+    });
+  }
+
+  // Step 6: Find the correct HTML element ID for a given CSV row.
+  function getTargetId(record) {
+    const section = (record.section || "").trim();
+    const type = (record.type || "").trim().toLowerCase();
+
+    if (!section) return null;
+
+    if (type.includes("-heading") || type.includes("-paragraph")) {
+      return type;
+    }
+
+    if (type === "heading") return `${section}-heading`;
+    if (type === "paragraph") return `${section}-paragraph`;
+
+    return `${section}-${type}`;
+  }
+
+  // Step 7: Fill the matching HTML elements based on the current page and section.
+  async function populateContentFromCsv() {
+    const currentPage = getCurrentPageName();
+
+    try {
+      const csvText = await fetchCsvText();
+      const rows = parseCSV(csvText);
+      const records = rowsToObjects(rows);
+
+      records
+        .filter((record) => record.page && record.page.toLowerCase() === currentPage)
+        .forEach((record) => {
+          const content = record.content || "";
+          const targetId = getTargetId(record);
+
+          if (!targetId) return;
+
+          const targetElement = document.getElementById(targetId);
+
+          // Only update the element if it exists on the page.
+          if (targetElement) {
+            targetElement.textContent = content;
+          }
+        });
+    } catch (error) {
+      console.error("Unable to load content from CSV:", error);
+    }
+  }
+
+  // Step 8: Run the script after the page has finished loading.
+  document.addEventListener("DOMContentLoaded", populateContentFromCsv);
+</script>
+
+
+
+
+
+</body>
+</html>
